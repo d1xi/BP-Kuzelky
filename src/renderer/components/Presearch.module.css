@@ -1,0 +1,40 @@
+.wrapper {
+    position: relative;
+}
+
+.input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font: inherit;
+}
+
+.dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    padding: var(--no-padding);
+    margin: var(--no-margin);
+
+    background: var(--light-gray);
+    border: 1px solid var(--black);
+    border-radius: 5px;
+    z-index: 10;
+
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dropdown li {
+    list-style-type:none;
+    margin: 0px;
+    padding: var(--small-padding);
+    list-style-position: inside;
+    cursor: pointer;
+}
+
+.dropdown li:hover {
+    background: #e5e7eb;
+}

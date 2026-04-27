@@ -1,0 +1,51 @@
+.container{
+  width: 100%;
+  border: 1px solid var(--light-aqua);
+}
+
+.table{
+  width: 100%;
+}
+
+tbody tr:nth-child(odd) td {
+  background-color: var(--gray);
+  color: var(--white);
+  border-radius: 4px;
+}
+
+tbody tr:nth-child(even) td {
+  background-color: var(--light-gray);
+  color:var(--black);
+  border-radius: 4px;
+}
+
+.mainRow {
+  cursor: pointer;
+}
+
+.mainRow.open{
+  background-color: var(--dark-gray);
+}
+
+.mainRow:hover:not(.open) {
+  background: var(--light-aqua);
+  opacity: 0.8;
+  transition: all 0.4s ease;
+}
+
+.detailRow{
+  font-size: 0.9em;
+  text-align: end;
+}
+
+.mainRow:nth-of-type(odd) + .detailRow,
+.mainRow:nth-of-type(odd) + .detailRow + .detailRow {
+  background-color: var(--gray);
+  color: var(--white);
+}
+
+.mainRow:nth-of-type(even) + .detailRow,
+.mainRow:nth-of-type(even) + .detailRow + .detailRow {
+  background-color: var(--light-gray);
+  color:var(--black)
+}

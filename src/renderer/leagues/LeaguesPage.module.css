@@ -1,0 +1,19 @@
+.container{
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: top;
+    align-items: center;
+    overflow-y: auto;
+}
+
+.leaguesContainer{
+    width: 80vw;
+}
+
+.menu{
+    display: flex;
+    flex-direction: row;
+}

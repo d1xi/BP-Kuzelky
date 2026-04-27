@@ -1,0 +1,37 @@
+.container{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    background-color: var(--dark);
+    border: 1px solid var(--dark-gray);
+    width: 50vw;
+    height: 100%;
+}
+
+.teamName{
+    height: 3rem;
+    
+    color: var(--light-gray);
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;    
+    color: var(--light-gray);
+}
+
+.scoreBoard{    
+    height: 4rem;
+    display: flex;
+    justify-items: center; 
+    align-items: end;
+    width: 75%;       
+}
+
+.teamContainer{   
+    flex:1;
+    width: 90%;
+    border-radius: 1rem;
+    color: var(--light-gray);
+    background-color: var(--dark);
+}

@@ -1,0 +1,51 @@
+.table{
+    width: 100%;
+    position: relative;
+    z-index: 5;
+    padding-bottom: 0.5rem;
+}
+
+.center{
+    text-align: center;
+    color: var(--white);
+    width: 4rem;
+}
+
+tbody tr.selectedRow td{
+    background-color: var(--dark-aqua);
+}
+
+tbody tr.selectedRow:not(.readonlyRow) td {
+    background-color: var(--light-aqua);
+    color: var(--black);
+}
+
+.table input:read-only {
+    cursor: default;
+}
+
+.input{
+    width: 100%;
+    height: 100%;
+    padding: var(--medium-padding);
+    margin: var(--no-margin);
+    min-height: 1.5rem;     
+    -webkit-appearance: none;
+    -ms-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: transparent;
+    border-radius: 3px;
+    outline: none;
+    border: none;
+    box-sizing: border-box;
+    appearance: none;
+    font: inherit;
+    color: inherit;
+    background-color: inherit;
+}
+
+.table .td select option{
+    color: var(--black);
+    background-color: var(--light-gray);
+}

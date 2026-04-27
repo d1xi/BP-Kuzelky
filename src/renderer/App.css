@@ -1,0 +1,42 @@
+/*
+ * @NOTE: Prepend a `~` to css file paths that are in your node_modules
+ *        See https://github.com/webpack-contrib/sass-loader#imports
+ */
+
+:root {
+  --black:#000000;
+  --dark:#1a1a1c;
+  --dark-gray:#484349;/* #333333;*/
+  --gray:#a09a9d;/*#555555;*/
+  --light-gray:#c8c4cc;/*#777777;*/
+  --white:#ffffff;/*#D9D9D9;*/
+  --light-aqua:#40e0d0;
+  --dark-aqua:#17a09e;
+
+  font-size: 14pt;
+  --small-font-size: 0.8rem;
+  --medium-font-size: 1rem;
+  --large-font-size: 1.2rem;
+
+  --no-margin: 0rem;
+  --small-margin: 0.2rem;
+  --medium-margin: 0.5rem;
+  
+  --no-padding: 0rem;
+  --small-padding: 0.2rem;
+  --medium-padding: 0.5rem;
+  --large-paddinng: 1rem;
+}
+
+body {
+  position: relative;
+  color: white;
+  height: 100vh;
+  background-color: var(--light);
+  margin: var(--no-margin);
+  font-family: sans-serif;
+  overflow-y: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

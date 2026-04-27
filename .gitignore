@@ -1,0 +1,46 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# Coverage
+coverage
+.eslintcache
+
+# Dependencies
+node_modules/
+
+# Build outputs (IMPORTANT)
+dist/
+build/
+out/
+release/
+*.tgz
+
+# Electron
+release/app/dist
+release/build
+.erb/dll
+
+# TypeScript / bundlers
+*.tsbuildinfo
+.vite
+.cache
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated types
+*.css.d.ts
+*.sass.d.ts
+*.scss.d.ts

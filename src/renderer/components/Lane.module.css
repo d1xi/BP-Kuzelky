@@ -1,0 +1,115 @@
+.container{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--dark);
+    border: 1px solid var(--dark-gray);
+
+    width: 50vw;
+    height: 100%;
+}
+
+.playerName{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;    
+    color: var(--light-gray);
+    padding-left: 0.5rem;
+   
+    align-self: flex-start;
+    flex: 1;
+}
+
+.throwHistory{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center; 
+    padding-right: 0.5rem;
+
+    align-self: flex-end;
+    flex: 1;
+}
+
+.laneNumber{
+    font-size: var(--large-font-size);
+    color: var(--light-gray);
+    flex: 1;
+}
+
+.laneContainer{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    flex: 7;
+    width: 48vw;
+    gap: 0.5rem;
+}
+
+.fallenMapContainer{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height:100%;
+    background-color: var(--gray);
+    color: var(--black);
+
+    border: 1px solid var(--light-aqua);
+    border-radius: 1rem;
+    flex: 1;
+}
+
+.detectedNumbersContainer{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height:100%;
+    background-color: var(--gray);
+    color: var(--black);
+    
+    border: 1px solid var(--light-aqua);
+    border-radius: 1rem;
+    flex: 2;
+}
+
+
+.item{
+    display: flex;
+    justify-content: center;
+    align-items: top;
+    padding-top: 1rem;
+    border: 1px solid var(--light-aqua);    
+    padding-left: 1rem;
+}
+
+.item:nth-child(1){
+    border-radius: 1rem 0 0 0;
+}
+
+.item:nth-child(2){
+    border-radius: 0 1rem 0 0;
+}
+
+.item:nth-child(3){
+    border-radius: 0 0 0 1rem;
+}
+
+.item:nth-child(4){
+    border-radius: 0 0 1rem 0;
+}
+
+.fallenNumber{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+}
+
+.fallenMap{
+    flex: 2;
+}

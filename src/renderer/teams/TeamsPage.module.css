@@ -1,0 +1,38 @@
+.container{
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow-y: auto;
+}
+
+.teamsContainer{
+    width: 80vw;
+    flex: 1;
+}
+
+.teamView{
+    width: 100%;
+}
+
+.menu{
+    display: flex;
+    flex-direction: row;
+}
+
+.membersContainer{
+    width: 80vw;
+    flex: 1;
+}
+
+.membersView{
+    width: 100%;
+}
+
+.leaguesContainer{
+    width: 80vw;
+}
+

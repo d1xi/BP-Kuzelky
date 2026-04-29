@@ -2,14 +2,33 @@ from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from pydantic import BaseModel
 #from ocr import Detect
 from ocr import OCR
 from threading import Thread
 import cv2
 
+import json
+import os
+CONFIG_PATH = "./src/renderer/utils/connectInformation.json"
+
+class Box(BaseModel):
+    lane: int
+    x: int
+    y: int
+    w: int
+    h: int
+
+class Boxes(BaseModel):
+    sum: Box
+    laneSum: Box
+    throws: Box
+    fallenPins: Box
+    time: Box
+    pins: list[Box]
 
 ocr = OCR()
-ocr.Start()
+
 
 sum = 200; laneSum = 100; throws = 45; fallenPins = 3; time = 18000; mistakes = 4
 pins = 0b100100001
@@ -23,17 +42,55 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def loadConfig():
+    if not os.path.exists(CONFIG_PATH):
+        return{
+            "ip" : "",
+            "userName" : "",
+            "password" : ""
+        }
+    
+    with open(CONFIG_PATH, "r") as file:
+        data = json.load(file)
+        return data
+
+def saveConfig(ip, userName, password):
+    data = {
+        "ip" : ip,
+        "userName" : userName,
+        "password" : password
+    }
+
+    with open(CONFIG_PATH, "w") as file:
+        json.dump(data, file)
+
 @app.get("/frame")
 def getFrame():
     frame = ocr.getFrame()
     if(frame is None):
         return(-1)
     
-    ret, buffer = cv2.imencode(".jpeg", frame)
-    return(Response(content=buffer.tobytes(), media_type="image/jpeg"))
+    # testImg = cv2.imread("./src/backend/img.jpg")
+    ret, buffer = cv2.imencode(".jpg", frame) #".jpeg, frame"
+    return(Response(content=buffer.tobytes(), media_type="image/jpg"))
+
+@app.get("/config")
+def getConfig():   
+    data = loadConfig()
+        
+    return{
+        "ip" : data.get("ip", ""),
+        "userName" : data.get("userName", "")
+    }
+
+@app.post("/connect")
+def connectCam():
+    return "ok"
 
 @app.get("/values")
 def readValues():
+    return ocr.getValues()
+
     return [
         {
             "sum": sum,
@@ -62,7 +119,12 @@ def getOCRBoxes():
     ]
 
 @app.post("/boxes")
-def writeValues():
-    return()
+def setOCRBoxes(boxes: Boxes):
+    print(boxes)
 
+config = loadConfig()
+thread = Thread(target=ocr.Start, args=[config])
+thread.start()
 uvicorn.run(app)
+
+

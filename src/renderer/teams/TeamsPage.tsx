@@ -29,6 +29,7 @@ export default function TeamsPage(){
     }, [location.pathname]);
 
     useEffect(() => {
+        console.log("help")
         database.leagues.getAll().then((leaguesList) => setLeagues(leaguesList))
     }, [location.pathname]);
 

@@ -1,0 +1,51 @@
+.container{
+    height: 100%;
+    height: auto;
+}
+
+.rtspMenu{
+    display: flex;
+    flex-direction: column;    
+}
+
+.placeholder{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    justify-self: center;
+    align-items: center;
+}
+
+.status{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.rtspMenu h4{
+    padding: var(--no-padding);
+    margin: var(--medium-margin);
+}
+
+.input{
+    width: 100%;
+    height: 100%;
+    padding: var(--medium-padding);
+    margin: var(--no-margin);
+    min-height: 1.5rem;     
+    -webkit-appearance: none;
+    -ms-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: transparent;
+    border-radius: 3px;
+    outline: none;
+    border: none;
+    box-sizing: border-box;
+    appearance: none;
+    font: inherit;
+    color: inherit;
+    background-color: var(--dark-gray);
+}

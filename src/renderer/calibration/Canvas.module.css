@@ -1,0 +1,45 @@
+.container{
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    cursor: crosshair;
+}
+
+.box {
+  position: absolute;
+  border: 6px solid red;
+  color: white;
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+.box:active {
+    cursor: grabbing;
+}
+
+.preview {
+  position: absolute;
+  border: 2px dashed yellow;
+  pointer-events: none;
+}
+
+.handleTL, .handleTR, .handleBL, .handleBR {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: white;
+    border: 1px solid black;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.handleTL { top: -5px; left: -5px; cursor: nwse-resize; }
+.handleTR { top: -5px; right: -5px; cursor: nesw-resize; }
+.handleBL { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.handleBR { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+.box.selected {
+    outline: 2px solid yellow;
+}

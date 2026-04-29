@@ -5,23 +5,20 @@ import { League } from "../database/leagues";
 import { useDatabase } from "../database/database";
 import Button from "../components/Button";
 
-import { useLocation } from "react-router-dom";
-
-
 export default function LeaguesPage(){
     const database = useDatabase();
     const [leagues, setLeagues ] = useState<League[]>([]);
     const [selectedLeague, setSelectedLeague] = useState<League | null>(null);  
-    const location = useLocation();
     
     useEffect(() => {
             database.leagues.getAll().then((leaguesList) => setLeagues(leaguesList))
-        }, [location.pathname]);
+        }, []);
     
     function OnClickAddLeague(){
         database.leagues.addLeague("").then((newLeague) => {
-            const newLeagues = [ ...leagues, newLeague];
-            setLeagues(newLeagues);
+            //const newLeagues = [ ...leagues, newLeague];
+            //setLeagues(newLeagues);
+            setLeagues(prev => [...prev, newLeague]);            
         })
     }
 

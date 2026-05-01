@@ -2,7 +2,7 @@ from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel
+from shared import Boxes, Box
 #from ocr import Detect
 from ocr import OCR
 from threading import Thread
@@ -12,26 +12,11 @@ import json
 import os
 CONFIG_PATH = "./src/renderer/utils/connectInformation.json"
 
-class Box(BaseModel):
-    lane: int
-    x: int
-    y: int
-    w: int
-    h: int
-
-class Boxes(BaseModel):
-    sum: Box
-    laneSum: Box
-    throws: Box
-    fallenPins: Box
-    time: Box
-    pins: list[Box]
-
 ocr = OCR()
+ocr_boxes: Boxes | None = None
 
-
-sum = 200; laneSum = 100; throws = 45; fallenPins = 3; time = 18000; mistakes = 4
-pins = 0b100100001
+#sum = 200; laneSum = 100; throws = 45; fallenPins = 3; time = 18000; mistakes = 4
+#pins = 0b100100001
 
 app = FastAPI()
 
@@ -70,9 +55,8 @@ def getFrame():
     if(frame is None):
         return(-1)
     
-    # testImg = cv2.imread("./src/backend/img.jpg")
-    ret, buffer = cv2.imencode(".jpg", frame) #".jpeg, frame"
-    return(Response(content=buffer.tobytes(), media_type="image/jpg"))
+    ret, buffer = cv2.imencode(".jpeg", frame) #".jpeg, frame"
+    return(Response(content=buffer.tobytes(), media_type="image/jpeg"))
 
 @app.get("/config")
 def getConfig():   
@@ -89,41 +73,28 @@ def connectCam():
 
 @app.get("/values")
 def readValues():
-    return ocr.getValues()
-
-    return [
-        {
-            "sum": sum,
-            "laneSum": laneSum,
-            "throws": throws,
-            "fallesPins": fallenPins,
-            "time": time,
-            "mistakes": mistakes,
-            "pins": pins   
-        }
-    ]
+    return ocr.latestDetectedValues
 
 @app.get("/boxes")
 def getOCRBoxes():
-    return[
-        {
-            "sum": {"x":10, "y":20, "w":50, "h":20},
-            "laneSum": {"x":10, "y":20, "w":50, "h":20},
-            "throws": {"x":10, "y":20, "w":50, "h":20},
-            "fallenPins": {"x":10, "y":20, "w":50, "h":20},
-            "time": {"x":10, "y":20, "w":50, "h":20},
-            "pins": [
-                {"x":10, "y":20, "w":50, "h":20}
-            ] 
-        }
-    ]
+    return ocr.boxes.model_dump() if ocr.boxes else {}
 
 @app.post("/boxes")
 def setOCRBoxes(boxes: Boxes):
-    print(boxes)
+    ocr.setBoxes(boxes)
+    ocr.saveBoxes(boxes)
+    return{"status": "ok"}
+
+@app.get("/resolution")
+def getResolution():
+    return{
+        "w": ocr.frameWidth,
+        "h": ocr.frameHeight
+    }
+
 
 config = loadConfig()
-thread = Thread(target=ocr.Start, args=[config])
+thread = Thread(target=ocr.Start, args=[config], daemon=True)
 thread.start()
 uvicorn.run(app)
 

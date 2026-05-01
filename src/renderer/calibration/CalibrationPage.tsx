@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CalibrationMenu from "./CalibrationMenu";
 import styles from "./CalibrationPage.module.css"
 import Button from "../components/Button";
@@ -28,6 +28,7 @@ export default function CalibrationPage(props: Props){
     const [userName, setUserName] = useState<string>("");
     const [password, setPassword] = useState<string>("");
     const [status, setStatus] = useState<CalibrationnStatus>("Nečinný");
+    const [detectedValues, setDetectedValues] = useState<any>(null);
 
     ///const [selectedBoxType, setSelectedBoxType] = useState<BoxType>("Nevybráno");
     const [selection, setSelection] = useState<Record<number, BoxType>>({});
@@ -81,28 +82,117 @@ export default function CalibrationPage(props: Props){
     }, []);
 
     useEffect(() => {
-        const body: Record<string, any> = {};
+        const pollingInterval = setInterval(async () => {
+            try{
+                const result = await fetch("http://localhost:8000/values");
+                if(!result.ok){
+                    return;
+                }
 
-        for (const box of boxes) {
-            body[box.type] = {
+                const data = await result.json();
+                setDetectedValues(data);
+            }  
+
+            catch(error){   
+                return; //TODO err
+            }
+        }, 5000);
+
+        return () => clearInterval(pollingInterval);
+    }, []);
+
+    useEffect(() => {
+        const loadBoxes = async () => {
+            try{
+                const result = await fetch("http://localhost:8000/boxes");
+
+                if(!result.ok){
+                    return;
+                }
+
+                const data = await result.json();
+                const restoredBoxes: Box[] = [];
+
+                for(const [type, list] of Object.entries(data)){
+                    for(const box of list as any[]){
+                        restoredBoxes.push({
+                            lane: box.lane,
+                            type: type as BoxType,
+                            x: box.x,
+                            y: box.y,
+                            w: box.w,
+                            h: box.h
+                        });
+                    }
+                }
+
+                setBoxes(restoredBoxes);
+            }
+            catch(error){
+                return; //TODO err
+            }
+            
+        };
+        loadBoxes();
+    }, []);
+
+    useEffect(() => {
+        console.log("Detected Values:", detectedValues);
+    }, [detectedValues])
+
+    const lastSentBoxes = useRef<string>("");
+    useEffect(() => {
+        const body: Record<string, any> = {
+            sum: [],
+            laneSum: [],
+            throws: [],
+            fallenPins: [],
+            time: [],
+            pins:[]
+        };        
+
+        for(const box of boxes){
+            body[box.type].push({
                 lane: box.lane,
-                x: Math.floor(box.x),
-                y: Math.floor(box.y),
-                w: Math.floor(box.w),
-                h: Math.floor(box.h)
-            };
-        }
-
-        body['pins'] = [];
-
-        if (mode === "Žádný") {
-            fetch("http://localhost:8000/boxes", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(body)
+                x: box.x,
+                y: box.y,
+                w: box.w,
+                h: box.h
             });
         }
-    }, [mode]);
+        
+        const json = JSON.stringify(body);
+        if(json === lastSentBoxes.current){
+            return;
+        }
+
+        lastSentBoxes.current = json;
+
+        const timeout = setTimeout(async() => {
+            try{
+                const result = await fetch("http://localhost:8000/boxes", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: json
+                    });
+                                
+                    if(result.ok){
+                        lastSentBoxes.current = json;
+                    }
+
+                    else{
+                        //TODO err fail
+                    }
+            }
+            catch(error){
+                //TODO err
+            }  
+        
+    }, 300);
+
+    return () => clearTimeout(timeout);
+    }, [boxes])
+    
 
     const connect = async () => {
         setStatus("Připojování");

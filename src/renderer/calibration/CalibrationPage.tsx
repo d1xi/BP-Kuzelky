@@ -25,6 +25,7 @@ export default function CalibrationPage(props: Props){
     const database = useDatabase();
 
     const [ip, setIP] = useState<string>("");
+    const [port, setPort] = useState<string>("");
     const [userName, setUserName] = useState<string>("");
     const [password, setPassword] = useState<string>("");
     const [status, setStatus] = useState<CalibrationnStatus>("Nečinný");
@@ -35,6 +36,8 @@ export default function CalibrationPage(props: Props){
     const [activeLane, setActiveLane] = useState<number | null>(null);
     const [boxes, setBoxes] = useState<Box[]>([]);
     const [mode, setMode] = useState<Mode>("Žádný");
+
+    const [rtspURL, setRtspURL] = useState<string>("");
     
     const [interaction, setInteraction] = useState<{
         lane: number | null;
@@ -65,12 +68,14 @@ export default function CalibrationPage(props: Props){
                 const result = await fetch("http://localhost:8000/config");
                 const data = await result.json();
 
-                setIP(data.ip || "");
-                setUserName(data.userName || "");
+                setIP(data.ip ?? "");
+                setPort(data.port ?? "");
+                setUserName(data.userName ?? "");
+                setRtspURL(data.rtspURL ?? "");
 
-                if(data.ip){
-                    setTimeout(connect, 0);
-                }
+                setTimeout(() => {
+                    connect();
+                }, 0);
             }
             
             catch(error){
@@ -192,16 +197,16 @@ export default function CalibrationPage(props: Props){
 
     return () => clearTimeout(timeout);
     }, [boxes])
-    
+
 
     const connect = async () => {
         setStatus("Připojování");
-
+        const payLoad = {ip, port, userName, password, rtspURL}
         try{
             const result = await fetch("http://localhost:8000/connect", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ host: ip, username: userName, password})
+                body: JSON.stringify(payLoad)
             });
 
             if(result.ok) {
@@ -217,8 +222,6 @@ export default function CalibrationPage(props: Props){
             alert("Nepodařilo se připojit ke kameře")
         }
     };
-
-    //const frame = await fetch("http://localhost:8000/frame").then((data) => {})
 
     return(
         <div className={styles.container}>
@@ -246,8 +249,12 @@ export default function CalibrationPage(props: Props){
                         ip={ip}
                         onIpChange={setIP}
                         status={status}
-                        onStatusChange={setStatus}></CameraConnect>
-                        <Button onClick={connect} disabled={status === "Připojování"}>Připojit</Button>
+                        onStatusChange={setStatus}
+                        rtspURL={rtspURL}
+                        onRtspURLChange={setRtspURL}
+                        port={port}
+                        onPortChange={setPort}></CameraConnect>
+                        <Button onClick={() => connect()} disabled={status === "Připojování"}>Připojit</Button>
                 </div>                                   
             </div>
         </div>

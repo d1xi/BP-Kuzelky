@@ -14,6 +14,7 @@ SAVED_BOXES = "boxes.json"
 class OCR ():
     def __init__(self):
         self.capture = None
+        self.latestFrame = None
         self.boxes = self.loadBoxes()
         self.lock = threading.Lock()
         self.latestDetectedValues = {}
@@ -55,65 +56,47 @@ class OCR ():
             "h": box["h"] / self.frameHeight,
         }
 
-    def Start(self, config):
-        #rtsp://admin:123456@192.168.1.13:554/media/video1 
-        #link = f"rtsp://{config['userName']}:{config['password']}@{config['ip']}/media/video1"
-        
-        #link = "rtsp://localhost:8555/stream"
-        link = "C:/Users/Lucie/Desktop/BP/Data.mp4"
-        self.capture = cv2.VideoCapture(link, cv2.CAP_FFMPEG)
-        self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-        if not self.capture.isOpened():
-            print("Error: Could not open RTSP strem.\n")
-            return (-1)
-
-        self.frameWidth = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.frameHeight = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-        print("Starting RTSP capturing:\n")
-
+    def captureLoop(self):
         while True:
-            start = time.time()
-            values = self.getValues()
+            ret, frame = self.capture.read()
+
+            if not ret:
+                self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
+
+            with self.lock:
+                self.latestFrame = frame
+            
+            fps = self.capture.get(cv2.CAP_PROP_FPS) or 25
+            delay = 1.0 / fps
+            time.sleep(delay)
+            #time.sleep(0.1)
+        
+    def ocrLoop(self):
+        while True:
+            time.sleep(5)
+            frame = None
+
+            with self.lock:               
+                if(self.latestFrame is None):
+                    frame = None
+                else:
+                    frame = self.latestFrame.copy()
+                boxes = self.boxes.model_dump()
+            if frame is None:
+                continue
+
+            values = self.processFrame(frame, boxes)
 
             with self.lock:
                 self.latestDetectedValues = values
-            
-            lastTimeOfDetection = time.time() - start
-            sleepTime = max(0.0, 5.0 - lastTimeOfDetection)
-            time.sleep(sleepTime)
 
-    
-    def getFrame(self):
-        ret, frame = self.capture.read()
-        if not ret or frame is None:
-            return None
-        #size = frame.shape
-        #print(size)
-        return(frame)
-    
-    def getValues(self):
-        frame = self.getFrame()
-        
-        if frame is None:
-            return{}
-        
+    def processFrame(self, frame, boxes):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-
-        with self.lock:
-            boxes = self.boxes
-
-        if not boxes:
-            print("No boxes")
-            return{}
-        
         language = "digitSevenSegmentNew" #digitSevenSegment #digitSevenSegment-psm13
         configuration = "--psm 13 -c tessedit_char_whitelist=0123456789 -c classify_bln_numeric_mode=1 -c load_system_dawg=0 -c load_freq_dawg=0"
         minConfidence=40
-
         detectedNumbers = {}
-        boxes = self.boxes.model_dump()
 
         for box_type, box_list in boxes.items():
             if box_type == "pins":
@@ -144,8 +127,8 @@ class OCR ():
 
                 crop = cv2.resize(crop, (newWidth, newHeight))
                 
-                cv2.imshow("crop", crop)
-                cv2.waitKey(1)
+                #cv2.imshow("crop", crop)
+                #cv2.waitKey(1)
 
                 data = pytesseract.image_to_data(
                     crop,
@@ -182,3 +165,34 @@ class OCR ():
                     "confidence": averageConfidence
                 })
         return detectedNumbers
+
+    def Start(self, url: str):
+        #rtsp://admin:123456@192.168.1.13:554/media/video1 
+        #link = f"rtsp://{config['userName']}:{config['password']}@{config['ip']}/media/video1"
+        
+        link = url
+        #link = "C:/Users/Lucie/Desktop/BP/Data.mp4"
+        self.capture = cv2.VideoCapture(link)
+
+        if not self.capture.isOpened():
+            print("Error: Could not open RTSP strem.\n")
+            return (-1)
+
+        self.frameWidth = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.frameHeight = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        print("Starting RTSP capturing:\n")
+
+        threading.Thread(target=self.captureLoop, daemon=True).start()
+        threading.Thread(target=self.ocrLoop, daemon=True).start()
+
+        return True
+
+    
+    def getFrame(self):
+        with self.lock:
+            if self.latestFrame is None:
+                return None
+            else:
+                return self.latestFrame.copy()
+    

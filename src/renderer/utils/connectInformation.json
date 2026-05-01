@@ -1,5 +1,1 @@
-{
-    "ip" : "192.168.1.100:554",
-    "userName" : "admin",
-    "password" : "heslo"
-}
+{"ip": "192.168.1.110", "port": "554", "userName": "admin", "passwordEnc": "gAAAAABp9Nv8Fpbtq2miGOP-J4gTpQH4ltyprwQC-wJnsY75DQBt6AigzRLuTSO1Wp8pwsSv5eQrb7QAn5Lep6xWeO_rw9RtAA=="}

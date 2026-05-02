@@ -118,10 +118,12 @@ database.exec(`
 
   CREATE TABLE IF NOT EXISTS matchPlayers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    matchId INTEGER NOT NULL,
     teamId INTEGER,
     memberId INTEGER,
     teamName TEXT NOT NULL,
     memberName TEXT NOT NULL,
+    FOREIGN KEY (matchId) REFERENCES matches(id) ON DELETE SET NULL,
     FOREIGN KEY (teamId) REFERENCES teams(id) ON DELETE SET NULL,
     FOREIGN KEY (memberId) REFERENCES members(id) ON DELETE SET NULL
   );

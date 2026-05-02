@@ -1,0 +1,41 @@
+.container{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background-color: var(--dark-gray);    
+    border: 1px solid var(--light-aqua);
+    border-radius: 1rem;
+}
+
+.header{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}   
+
+.header select{
+    width: 80%;
+    height: 1.5rem;
+}
+
+.header h4{
+    margin: var(--medium-margin);
+}
+
+.tableContainer{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.table{
+    width: 100%;
+}
+
+.hint{
+    padding: 0.5rem;
+    color: var(--dark-aqua);
+    
+}

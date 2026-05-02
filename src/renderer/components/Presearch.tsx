@@ -7,6 +7,7 @@ type Props<T> = {
   onChange: (item: T) => void;
   getLabel: (item: T) => string;
   placeholder?: string;
+  onQueryChange?: (value: string) => void;
 };
 
 export default function Presearch<T>(
@@ -16,6 +17,7 @@ export default function Presearch<T>(
     onChange,
     getLabel,
     placeholder = "",
+    onQueryChange,
     }: Props<T>) 
 {
   const [query, setQuery] = useState("");
@@ -41,17 +43,17 @@ export default function Presearch<T>(
         }}
         onChange={(e) => {
           setQuery(e.target.value);
+          onQueryChange?.(e.target.value);
         }}
         onBlur={() => {
-          const item = items.find((item) => {
-            return getLabel(item) === query;
-          })
-          if(item !== undefined){
-            onChange(item);
+          const match = items.find(item =>
+              getLabel(item).toLowerCase() === query.toLowerCase()
+          );
+
+          if (match) {
+              onChange(match);
           }
-          else{
-            alert('Neplatná hodnota!')
-          }
+
           setTimeout(() => setOpen(false), 150);
         }}
       />

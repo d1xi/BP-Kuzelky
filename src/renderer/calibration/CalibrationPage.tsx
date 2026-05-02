@@ -11,17 +11,40 @@ export type CalibrationnStatus = "Nečinný" | "Připojování" | "Připojeno";
 export type Box = {
     lane: number;
     type: BoxType;
+    pinIndex: number | null;
     x: number;
     y: number;
     w: number;
     h: number;
+};
+
+const BoxMap: Record<BoxType, string> ={
+    "Nevybráno": "",
+    "Suma celkem": "sum",
+    "Čas": "time",
+    "Počet hodů": "throws",
+    "Spadené": "fallenPins",
+    "Suma dráhy": "laneSum",
+    "Kuželky": "pins"
+};
+
+const ReverseBoxMap: Record<string, BoxType> = {
+    sum: "Suma celkem",
+    time: "Čas",
+    throws: "Počet hodů",
+    fallenPins: "Spadené",
+    laneSum: "Suma dráhy",
+    pins: "Kuželky"
+};
+
+export type ToolMode = "box" | "pin" | null;
+
+export type SelectedPin = {
+    lane: number;
+    pinIndex: number;
 }
 
-export type Props = {
-
-}
-
-export default function CalibrationPage(props: Props){
+export default function CalibrationPage(){
     const database = useDatabase();
 
     const [ip, setIP] = useState<string>("");
@@ -37,6 +60,8 @@ export default function CalibrationPage(props: Props){
     const [boxes, setBoxes] = useState<Box[]>([]);
     const [mode, setMode] = useState<Mode>("Žádný");
 
+    const [toolMode, setToolMode] = useState<ToolMode>(null);
+    const [selectedPin, setSelectedPin] = useState<Record<number, number | null>>({});
     const [rtspURL, setRtspURL] = useState<string>("");
     
     const [interaction, setInteraction] = useState<{
@@ -119,10 +144,13 @@ export default function CalibrationPage(props: Props){
                 const restoredBoxes: Box[] = [];
 
                 for(const [type, list] of Object.entries(data)){
+                    const mappedType = ReverseBoxMap[type];
+                    if(!mappedType) continue;
                     for(const box of list as any[]){
                         restoredBoxes.push({
                             lane: box.lane,
-                            type: type as BoxType,
+                            type: mappedType,
+                            pinIndex: box.pinIndex ?? null,
                             x: box.x,
                             y: box.y,
                             w: box.w,
@@ -145,7 +173,6 @@ export default function CalibrationPage(props: Props){
         console.log("Detected Values:", detectedValues);
     }, [detectedValues])
 
-    const lastSentBoxes = useRef<string>("");
     useEffect(() => {
         const body: Record<string, any> = {
             sum: [],
@@ -157,37 +184,25 @@ export default function CalibrationPage(props: Props){
         };        
 
         for(const box of boxes){
-            body[box.type].push({
+            const key = BoxMap[box.type]
+            if(!key) continue;
+            body[key].push({
                 lane: box.lane,
+                pinIndex: box.pinIndex,
                 x: box.x,
                 y: box.y,
                 w: box.w,
                 h: box.h
             });
         }
-        
-        const json = JSON.stringify(body);
-        if(json === lastSentBoxes.current){
-            return;
-        }
-
-        lastSentBoxes.current = json;
 
         const timeout = setTimeout(async() => {
             try{
                 const result = await fetch("http://localhost:8000/boxes", {
                     method: "POST",
                     headers: {"Content-Type": "application/json"},
-                    body: json
+                    body: JSON.stringify(body)
                     });
-                                
-                    if(result.ok){
-                        lastSentBoxes.current = json;
-                    }
-
-                    else{
-                        //TODO err fail
-                    }
             }
             catch(error){
                 //TODO err
@@ -233,12 +248,38 @@ export default function CalibrationPage(props: Props){
                         {status === "Připojování" ? "Připojuji ke kameře ..." : "Nepřipojeno"}
                     </div>
                 )}
-                <Canvas onModeChange={setMode} selection={selection} setSelection={setSelection} boxes={boxes} setBoxes={setBoxes} activeLane={activeLane}></Canvas>
+                <Canvas onModeChange={setMode} selection={selection} 
+                setSelection={setSelection} boxes={boxes} setBoxes={setBoxes} 
+                activeLane={activeLane}
+                selectedPin={selectedPin}
+                toolMode={toolMode}></Canvas>
             </div>
             <div className={styles.menu}>
                 <div className={styles.calibration}>
-                    <CalibrationMenu activeLane={activeLane} laneNumber={1} onSelect={(lane, type) => {setActiveLane(lane), setSelection(prev => ({...prev, [lane]: type}))}} selected={selection[1] ?? "Nevybráno"}>Dráha 1</CalibrationMenu>
-                    <CalibrationMenu activeLane={activeLane} laneNumber={2} onSelect={(lane, type) => {setActiveLane(lane), setSelection(prev => ({...prev, [lane]: type}))}} selected={selection[2] ?? "Nevybráno"}>Dráha 2</CalibrationMenu>
+                    <CalibrationMenu activeLane={activeLane} laneNumber={1} 
+                    onSelect={(lane, type) => {setActiveLane(lane);
+                        setSelection(prev => ({...prev, [lane]: type})); 
+                        if(type !== "Kuželky"){setSelectedPin({[lane]: null})}
+                        }} 
+                    setToolMode={setToolMode}
+                    selected={selection[1] ?? "Nevybráno"}
+                    selectedPin={selectedPin[1] ?? null} 
+                    onSelectPin={(lane, pin) => {
+                        setActiveLane(lane)
+                        setSelectedPin({[lane]: pin});
+                        setSelection({})}}>Dráha 1</CalibrationMenu>
+                    <CalibrationMenu activeLane={activeLane} laneNumber={2}
+                    onSelect={(lane, type) => {setActiveLane(lane);
+                        setSelection(prev => ({...prev, [lane]: type})); 
+                        if(type !== "Kuželky"){setSelectedPin({[lane]: null})}
+                        }} 
+                    setToolMode={setToolMode}
+                    selected={selection[2] ?? "Nevybráno"}
+                    selectedPin={selectedPin[2] ?? null} 
+                    onSelectPin={(lane, pin) => {
+                        setActiveLane(lane)
+                        setSelectedPin({[lane]: pin});
+                        setSelection({})}}>Dráha 2</CalibrationMenu>
                 </div>                
                 <div className={styles.streamConnectContainer}>
                     <CameraConnect database={database}

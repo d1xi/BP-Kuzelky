@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class Box(BaseModel):
     lane: int
+    pinIndex: Optional[int]
     x: float
     y: float
     w: float

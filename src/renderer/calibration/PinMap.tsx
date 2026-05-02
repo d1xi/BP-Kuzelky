@@ -1,9 +1,11 @@
 import { useState } from "react";
-import FallenPinsMap from "../components/FallenPinsMap";
 import styles from "./PinMap.module.css"
+import { BoxType } from "./Canvas";
 
 export type Props = {
-
+  laneNumber: number;
+  selectedPin: number | null;
+  onSelectPin: (lane: number, pinId: number) => void;
 }
 
 type Pin = {
@@ -28,19 +30,23 @@ export default function PinMap(props: Props){
 
   return (
     <div className={styles.container}>
-       {pins.map((pin) => (
-        <div
+       {pins.map((pin) => {
+        const isSelected = props.selectedPin === pin.id;
+        return(
+          <div
             key={pin.id}
-            className={styles.pin}
+            className={`${styles.pin} ${isSelected ? styles.active : ""}`}
             style={{
                 gridColumn: pin.col,
                 gridRow: pin.row,
             }}
-            onClick={() => {}} //TODO
+            onClick={() => props.onSelectPin(props.laneNumber, pin.id)}
             >
             {pin.id}
         </div>
-        ))}
+        )
+      }        
+        )}
     </div>
   );
 }

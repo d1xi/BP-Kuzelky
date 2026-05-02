@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Box } from "./CalibrationPage";
+import { Box, ToolMode } from "./CalibrationPage";
 import styles from "./Canvas.module.css"
 import { laneColors, typeColors } from "./theme";
 
 const DRAG_TRESHOLD = 5;
 
-export type BoxType = "Nevybráno" | "Suma celkem" | "Čas" | "Počet hodů" | "Spadené" | "Suma dráhy";
+export type BoxType = "Nevybráno" | "Suma celkem" | "Čas" | "Počet hodů" | "Spadené" | "Suma dráhy" | "Kuželky";
 export type Mode = "Žádný" | "Náhled" | "Kreslení" | "Přemístění" | "Rozměry";
 
 const boxColors: Record<BoxType, string> = {
@@ -15,6 +15,7 @@ const boxColors: Record<BoxType, string> = {
     "Počet hodů": "green",
     "Spadené": "orange",
     "Suma dráhy": "purple",
+    "Kuželky": "aqua",
 };
 
 export type Props = {
@@ -25,7 +26,9 @@ export type Props = {
     boxes: Box[],
     setBoxes: React.Dispatch<React.SetStateAction<Box[]>>,
     activeLane: number | null,
-    onModeChange: (mode: Mode) => void
+    onModeChange: (mode: Mode) => void,
+    selectedPin: Record<number, number | null>,
+    toolMode: ToolMode,
 }
 
 export default function Canvas(props: Props){
@@ -96,24 +99,37 @@ export default function Canvas(props: Props){
         if(event.target === containerRef.current){
             setSelectedIndex(null);
         }
-
+        
         const lane = props.activeLane;
-        if (!lane) return;
+        if (lane === null) return;
 
         const type = props.selection[lane] ?? "Nevybráno";
-        if(type === "Nevybráno") return;
+        const pinIndex = props.selectedPin[lane] ?? null;
+
+        if(type === "Nevybráno" && pinIndex === null) return;
 
         const position = getRelativePosition(event);
-        setStart(toNormalizedCoordinates(position.x, position.y));
+        const start = toNormalizedCoordinates(position.x, position.y);
+        setStart(start);
         setDrawing(true);
+
+        setCurrent({
+            lane,
+            type,
+            pinIndex,
+            x: start.x,
+            y: start.y,
+            w: 0,
+            h: 0
+        });
+
+        props.onModeChange("Kreslení");
     };
 
     const onMouseMove = (event: React.MouseEvent) => {;
         const mouse = getNormalizedFromEvent(event)
-        if(!resizing){
-            return;
-        }
-
+        
+        if (resizing) {
         props.setBoxes(prev => {
             const updated = [...prev];
             const box = { ...updated[resizing.index] };
@@ -135,26 +151,22 @@ export default function Canvas(props: Props){
                     nw = x2 - mouse.x;
                     nh = y2 - mouse.y;
                     break;
-
                 case "tr":
                     ny = mouse.y;
                     nw = mouse.x - x1;
                     nh = y2 - mouse.y;
                     break;
-
                 case "bl":
                     nx = mouse.x;
                     nw = x2 - mouse.x;
                     nh = mouse.y - y1;
                     break;
-
                 case "br":
                     nw = mouse.x - x1;
                     nh = mouse.y - y1;
                     break;
             }
 
-            // normalize negative safety
             if (nw < 0) {
                 nx += nw;
                 nw = Math.abs(nw);
@@ -164,16 +176,12 @@ export default function Canvas(props: Props){
                 nh = Math.abs(nh);
             }
 
-            updated[resizing.index] = {
-                ...box,
-                x: nx,
-                y: ny,
-                w: nw,
-                h: nh,
-            };
-
+            updated[resizing.index] = { ...box, x: nx, y: ny, w: nw, h: nh };
             return updated;
         });
+
+        return;
+    }
         
         if(movingIndex !== null && dragOffset){
             const normalized = getNormalizedFromEvent(event);
@@ -194,20 +202,15 @@ export default function Canvas(props: Props){
         }
 
         if(drawing && start){
-            const lane = props.activeLane;
-            const normalized = getNormalizedFromEvent(event);
-
-            if (!lane) return;
-
-            const type = props.selection[lane] ?? "Nevybráno";
-
-            setCurrent({
-                lane,
-                type,
+            setCurrent((prev) => {
+                if (!prev) return prev;
+                return {
+                ...prev,
                 x: start.x,
                 y: start.y,
-                w: normalized.x - start.x,
-                h: normalized.y - start.y
+                w: mouse.x - start.x,
+                h: mouse.y - start.y,
+                };
             });
         }
 
@@ -247,7 +250,8 @@ export default function Canvas(props: Props){
 
         const box: Box = {
             lane: current.lane,
-            type: current.type,
+            type: current.pinIndex !== null ? "Kuželky" : current.type,
+            pinIndex: current.pinIndex,
             x: Math.min(start.x, start.x + current.w),
             y: Math.min(start.y, start.y + current.h),
             w: Math.abs(current.w),
@@ -256,9 +260,9 @@ export default function Canvas(props: Props){
 
         props.setBoxes(prev => {
             const filtered = prev.filter(
-                b => !(b.lane === box.lane && b.type === box.type)
+                b => !(b.lane === box.lane && b.type === box.type && b.pinIndex === box.pinIndex)
             );
-            
+
             return [...filtered, box];
         });
 
@@ -313,7 +317,7 @@ export default function Canvas(props: Props){
                 return (
                     <div key={i} className={styles.box} style={{left: b.x, top: b.y, width: b.w, height: b.h, borderColor: laneColors[box.lane] ?? typeColors[box.type]}}
                         onMouseDown={(event) => handleBoxMouseDown(event, i, box)}>
-                        {box.type}
+                        {box.type === "Kuželky" ? box.pinIndex : box.type}
                         {selectedIndex === i && (
                             <>
                                 <div className={styles.handleTL} onMouseDown={(event) => startResize(event, i, "tl")}></div>

@@ -4,11 +4,11 @@ import { BoxType } from "./Canvas";
 import { laneColors } from "./theme";
 
 const boxTypes: BoxType[] = [
-    "sum",
-    "time",
-    "throws",
-    "fallenPins",
-    "laneSum",  
+    "Suma celkem",
+    "Čas",
+    "Počet hodů",
+    "Spadené",
+    "Suma dráhy"
 ];
 
 export type Props = {

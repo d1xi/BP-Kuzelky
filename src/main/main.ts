@@ -46,6 +46,105 @@ ipcMain.handle('dbAll',  (event, query, ...args) => {
   return statement.all(...args);  
 });
 
+ipcMain.handle("createNewMatch", (event, data) => {
+  if(!database) return null;
+
+  try{
+    database.exec("BEGIN");
+    const{
+      date,
+      leagueId,
+      totalThrows,
+      playerCount,
+      homeTeamId,
+      guestTeamId,
+      homePlayerIds,
+      guestPlayerIds
+    } = data;
+
+    const insertMatch = database.prepare(`
+      INSERT INTO matches(date, leagueId, totalThrows, playerCount)
+      VALUES (?,?,?,?)
+      `);
+
+    const insertTeam = database.prepare(`
+      INSERT INTO matchTeams(matchId, teamId)
+      VALUES (?,?)
+      `);
+
+    const insertPlayer = database.prepare(`
+      INSERT INTO matchPlayers(matchId, teamId, memberId, teamName, memberName)
+      SELECT ?, t.id, m.id, t.name, m.name
+      FROM members m
+      LEFT JOIN teams t ON t.id = m.teamId
+      WHERE m.id = ?
+      `);
+
+    const result = insertMatch.run(
+      date,
+      leagueId,
+      totalThrows,
+      playerCount
+    );
+
+    const matchId = result.lastInsertRowid as number;
+
+    insertTeam.run(matchId, homeTeamId);
+    insertTeam.run(matchId, guestTeamId);
+
+    for(const id of homePlayerIds){
+      insertPlayer.run(matchId, id);
+    }
+
+    for(const id of guestPlayerIds){
+      insertPlayer.run(matchId, id);
+    }
+
+    database.exec("COMMIT");
+    return matchId; 
+    
+  }
+  catch (error){
+    database.exec("ROLLBACK");
+    throw error;
+  }
+});
+
+ipcMain.handle("updateMatch", (event, data) => {
+  if(!database){
+    return;
+  }
+
+  const {
+    matchId,
+    homePlayerIds,
+    guestPlayerIds,
+  } = data;
+
+  try{
+    database.exec("BEGIN");
+    database.prepare("DELETE FROM matchPlayers WHERE matchId = ?").run(matchId);
+
+    const insertNewPlayers = database.prepare(`
+      INSERT INTO matchPlayers(matchId, teamId, memberId, teamName, memberName)
+      SELECT ?, t.id, m.id, t.name, m.name
+      FROM members m
+      JOIN teams t ON t.id = m.teamId
+      WHERE m.id = ?
+      `);
+
+      for(const id of [...homePlayerIds, ...guestPlayerIds]){
+        insertNewPlayers.run(matchId, id);
+      };
+
+      database.exec("COMMIT");
+  }
+  catch(error){
+    database.exec("ROLLBACK");
+    throw error;
+  }
+});
+
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
   sourceMapSupport.install();
@@ -111,9 +210,11 @@ database.exec(`
   CREATE TABLE IF NOT EXISTS matches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date INTEGER NOT NULL,
-    league TEXT NOT NULL,
+    leagueId INTEGER NOT NULL,
     totalThrows INTEGER NOT NULL,
-    playerCount INTEGER NOT NULL
+    playerCount INTEGER NOT NULL,
+    status TEXT DEFAULT 'draft',
+    FOREIGN KEY (leagueId) REFERENCES leagues(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS matchPlayers (
@@ -123,17 +224,19 @@ database.exec(`
     memberId INTEGER,
     teamName TEXT NOT NULL,
     memberName TEXT NOT NULL,
-    FOREIGN KEY (matchId) REFERENCES matches(id) ON DELETE SET NULL,
+    FOREIGN KEY (matchId) REFERENCES matches(id) ON DELETE CASCADE,
     FOREIGN KEY (teamId) REFERENCES teams(id) ON DELETE SET NULL,
-    FOREIGN KEY (memberId) REFERENCES members(id) ON DELETE SET NULL
+    FOREIGN KEY (memberId) REFERENCES members(id) ON DELETE SET NULL,
+    UNIQUE(matchId, memberId)
   );
 
   CREATE TABLE IF NOT EXISTS matchTeams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    teamId INTEGER,
     matchId INTEGER NOT NULL,
+    teamId INTEGER,
     FOREIGN KEY (teamId) REFERENCES teams(id) ON DELETE SET NULL,
-    FOREIGN KEY (matchId) REFERENCES matches(id) ON DELETE CASCADE
+    FOREIGN KEY (matchId) REFERENCES matches(id) ON DELETE CASCADE,
+    UNIQUE(matchId, teamId)
   );
 
   CREATE TABLE IF NOT EXISTS throwSeries (
@@ -156,6 +259,26 @@ database.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS matchState(
+    matchId INTEGER PRIMARY KEY,
+    currentPlayerIndex INTEGER NOT NULL DEFAULT 0,
+    currentTeamId INTEGER,
+    currentRound INTEGER NOT NULL DEFAULT 0,
+    isFinished INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL,
+    FOREIGN KEY (matchId) REFERENCES matches(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS matchDraft (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT NOT NULL,
+    updatedAt INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_matchPlayers_matchId ON matchPlayers(matchId);
+  CREATE INDEX IF NOT EXISTS idx_matchTeams_matchId ON matchTeams(matchId);
+  CREATE INDEX IF NOT EXISTS idx_throws_series ON throws(throwSeriesId);
 `);
 
   const seedDatabase = database
@@ -176,7 +299,14 @@ database.exec(`
 
     INSERT INTO members (name, registrationNumber, teamId) VALUES ('Jana Novakova', 41234, 1);
     INSERT INTO members (name, registrationNumber, teamId) VALUES ('Petr Svoboda', 12345, 1);
+    INSERT INTO members (name, registrationNumber, teamId) VALUES ('Marta', 7855, 1);
+    INSERT INTO members (name, registrationNumber, teamId) VALUES ('Jan', 14455, 1);
+    INSERT INTO members (name, registrationNumber, teamId) VALUES ('Jana', 4545, 1);
     INSERT INTO members (name, registrationNumber, teamId) VALUES ('Anna Vesela', 3245, 2);
+    INSERT INTO members (name, registrationNumber, teamId) VALUES ('Žaneta', 6565, 2);
+    INSERT INTO members (name, registrationNumber, teamId) VALUES ('Pavla', 5485, 2);
+    INSERT INTO members (name, registrationNumber, teamId) VALUES ('Pavel', 3575, 2);
+    INSERT INTO members (name, registrationNumber, teamId) VALUES ('Martin', 3548, 2);
   `);
   }
   

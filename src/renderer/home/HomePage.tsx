@@ -7,15 +7,16 @@ export type Page = "start" | "match";
 
 export default function HomePage(){
     const [page, setPage] = useState <Page>("start");
+    const [matchId, setMatchId] = useState<number | null>(null);
 
     return(
         <div className={styles.container}>            
             {page === "start" && (
-                <StartPage onStart={() => setPage("match")}/>
+                <StartPage matchId={matchId} onStart={(id) => {setMatchId(id); setPage("match")}}/>
             )}
 
             {page === "match" && (
-                <MatchPage onBack={() => setPage("start")}/>
+                <MatchPage matchId={matchId} onBack={() => setPage("start")}/>
             )}
         </div>
     );

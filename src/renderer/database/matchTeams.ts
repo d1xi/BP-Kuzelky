@@ -4,8 +4,8 @@ import { Team } from "./teams"
 
 export interface MatchTeam{//Tým v daném zápase
     id: number;
-    match: Match;
-    team: Team;
+    matchId: number;
+    teamId: number;
 }
 
 export class MatchTeamsRepository{
@@ -13,13 +13,13 @@ export class MatchTeamsRepository{
         return await window.electron.ipcRenderer.invoke<MatchTeam[]>("dbAll", "SELECT * FROM matchTeams");
     }
 
-    async addTeam(match: Match, team: Team): Promise<MatchTeam>{
+    async addTeam(matchId: number, teamId: number): Promise<MatchTeam>{
         const result = await window.electron.ipcRenderer.invoke<StatementResultingChanges>
-        ("dbRun", "INSERT INTO matchTeams(match, team), Values(?,?)", match.id, team.id);
+        ("dbRun", "INSERT INTO matchTeams(matchId, teamId) Values(?,?)", matchId, teamId);
         return {
             id: result.lastInsertRowid as number,
-            match: match,
-            team: team
+            matchId: matchId,
+            teamId: teamId
         };
     }
 
@@ -27,5 +27,13 @@ export class MatchTeamsRepository{
         const result = await window.electron.ipcRenderer.invoke<StatementResultingChanges>
         ("dbRun", "DELETE FROM matchTeams WHERE id=?", id);
         return result.changes > 0;
-    }   
+    }
+    
+    async getByMatchId(matchId: number): Promise<MatchTeam[]>{
+        return await window.electron.ipcRenderer.invoke<MatchTeam[]>(
+            "dbAll",
+            "SELECT * FROM matchTeams where matchId = ?",
+            matchId
+        );
+    }
 }

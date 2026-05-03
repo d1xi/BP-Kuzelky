@@ -3,10 +3,12 @@ import styles from "./StartInformation.module.css"
 import { Team } from "../database/teams";
 import { Member } from "../database/members";
 import Presearch from "../components/Presearch";
+import del from "../utils/delete-black.svg";
 
 export type Props = {
+    children: string;
     teamId: number | null;
-    onTeamChange: (id: number) => void;
+    onTeamChange?: (id: number) => void;
     playerIds: number[] | null;
     onPlayersChange: (id: number) => void;
 }
@@ -66,6 +68,14 @@ export default function StartInformation(props: Props){
 
         loadAllMembers();
     }, []);
+    
+    const handleDelete = (id: number) => {
+        props.onPlayersChange(id);
+    };
+
+    const getTeamName = (teamId: number | null) => {
+        return teams.find(t => t.id === teamId)?.name ?? "-";
+    };
 
     const teamPlayers = players;
 
@@ -77,7 +87,6 @@ export default function StartInformation(props: Props){
     p => !(props.playerIds ?? []).includes(p.id)
     );
 
-    // smart fallback logic
     const filteredPlayers = useMemo(() => {
     if (!query) return availableTeamPlayers;
 
@@ -95,23 +104,25 @@ export default function StartInformation(props: Props){
     return(
         <div className={styles.container}>
             <div className={styles.header}>
-                <h4>Tým</h4>
-                <select value={props.teamId ?? ""} onChange={(event) => props.onTeamChange(Number(event.target.value))}>
-                    <option value="" disabled selected hidden> Vyber Tým ...</option>
+                <h4>{props.children}</h4>
+                <select className={styles.input} value={props.teamId ?? ""} 
+                    disabled={!props.onTeamChange}
+                    onChange={(event) => props.onTeamChange?.(Number(event.target.value))}>
+                    <option value="" disabled hidden> Vyber Tým ...</option>
                     {teams.map((team) => (
                         <option key={team.id} value={team.id}>
                             {team.name}
                         </option>
                     ))}
-                </select>    
-                <h4>Hráči</h4>
+                </select>                
             </div>
             <div className={styles.tableContainer}>
+                <h4>Hráči</h4>
                 <table className={styles.table}>
                     <thead>
                         <tr>
                             <td>Jméno</td>
-                            <td>Registrační číslo</td>
+                            <td>Reg. číslo</td>
                             <td>Tým</td>
                         </tr>
                     </thead>
@@ -124,13 +135,14 @@ export default function StartInformation(props: Props){
                                 <tr key={id}>
                                     <td>{player.name}</td>
                                     <td>{player.registrationNumber}</td>
-                                    <td>{player.teamId}</td>
+                                    <td>{getTeamName(player.teamId)}</td>
+                                    <td className={styles.center} onClick={() => handleDelete(id)}><img src={del} alt="Delete Player"/></td>
                                 </tr>
                             );
                         })}
 
                         <tr>
-                            <td colSpan={3}>
+                            <td colSpan={4}>
                                 {props.teamId ? (
                                     <Presearch items={filteredPlayers} value={null} onChange={(player) => {props.onPlayersChange(player.id); setQuery("")}}
                                         getLabel={(player) => player.name} placeholder="Přidat hráče ..."

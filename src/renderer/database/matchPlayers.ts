@@ -16,27 +16,26 @@ export class MatchPlayersRepository{
         return await window.electron.ipcRenderer.invoke<MatchPlayer[]>("dbAll", "SELECT * FROM matchPlayers");
     }
 
-    async addMatchPlayer(matchId: number, teamId: number, memberId: number, teamName: string, memberName: string): Promise<MatchPlayer>{
+    async addMatchPlayer(matchId: number, memberId: number,): Promise<MatchPlayer>{
         const result = await window.electron.ipcRenderer.invoke<StatementResultingChanges>
             ("dbRun",
             `
             INSERT INTO matchPlayers (matchId, teamId, memberId, teamName, memberName)
-            SELECT ? t.id, m.id, t.name, m.name
-            FROM teams t
-            JOIN members ON m.teamId = t.id
-            WHERE t.id = ? AND m.id = ?
+            SELECT ?, t.id, m.id, t.name, m.name
+            FROM members m
+            JOIN teams t ON t.id = m.teamId
+            WHERE m.id = ?
             `,
             matchId,
-            teamId,
-            memberId
+            memberId,
             );
         return {
             id: result.lastInsertRowid as number,
             matchId: matchId,
-            teamId: teamId,
+            teamId: 0,
             memberId: memberId,
-            teamName: teamName,
-            memberName: memberName
+            teamName: "",
+            memberName: ""
         };
     }
 
@@ -44,5 +43,13 @@ export class MatchPlayersRepository{
         const result = await window.electron.ipcRenderer.invoke<StatementResultingChanges>
         ("dbRun", "DELETE FROM matchPlayers WHERE id=?", id);
         return result.changes > 0;
+    }
+
+    async getByMatchId(matchId: number): Promise<any[]>{
+        return await window.electron.ipcRenderer.invoke(
+            "dbAll",
+            "SELECT * FROM matchPlayers where matchId = ?",
+            matchId
+        );
     }
 }

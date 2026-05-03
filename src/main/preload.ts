@@ -3,7 +3,7 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { removeAllListeners } from 'process';
 
-export type Channels = 'navigate' | 'dbRun' | 'dbGet' | 'dbAll' | "openResultsWindow";
+export type Channels = 'navigate' | 'dbRun' | 'dbGet' | 'dbAll' | "openResultsWindow" | 'createNewMatch' | 'updateMatch';
 
 const electronHandler = {
   ipcRenderer: {

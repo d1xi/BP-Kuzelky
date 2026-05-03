@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import styles from "./Presearch.module.css";
 
 type Props<T> = {
@@ -22,6 +22,7 @@ export default function Presearch<T>(
 {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     if (!query) return items;
@@ -34,12 +35,12 @@ export default function Presearch<T>(
   return (
     <div className={styles.wrapper}>
       <input
+        ref={inputRef}
         className={styles.input}
-        value={open ? query : value ? getLabel(value) : ""}
+        value={value ? getLabel(value) : query}
         placeholder={placeholder}
         onFocus={() => {
           setOpen(true);
-          setQuery("");
         }}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -67,6 +68,8 @@ export default function Presearch<T>(
               onClick={() => {
                 onChange(item);
                 setOpen(false);
+                setQuery("");
+                inputRef.current?.blur();
               }}
             >
               {getLabel(item)}

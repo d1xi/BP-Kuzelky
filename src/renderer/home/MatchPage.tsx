@@ -8,6 +8,7 @@ import { teamAData, teamBData } from "../testData/score";
 
 export type Props = {
     onBack: () => void;
+    matchId: number | null;
 }
 
 export default function MatchPage(props: Props){

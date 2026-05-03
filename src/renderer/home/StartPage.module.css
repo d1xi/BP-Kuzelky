@@ -20,9 +20,10 @@
 .content{
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    justify-content:flex-start;
+    align-items:center;
     width: 100vw;
+    height: 100%;
 }
 
 .header{
@@ -30,21 +31,48 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    height: 15%;
+    width: calc(100vw - 2px);
+    border: 1px solid var(--dark-gray); 
+}
+
+.header h4{
+    margin: var(--medium-margin);
 }
 
 .info{
+    padding-top: 1rem;
     display: flex;
     flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    gap: 1rem;
+    justify-content:space-evenly;
+    align-items: start;
+    width: 100vw;
+    height: 80%;
 }
 
 .team{
-    width: 45%;
+    width: 45vw;
 }
 
 
-
+.input{
+    width: 10%;
+    height: auto;
+    padding: var(--medium-padding);
+    margin: var(--no-margin);
+    min-height: 1.5rem;     
+    -webkit-appearance: none;
+    -ms-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: transparent;
+    border-radius: 3px;
+    outline: none;
+    border: none;
+    box-sizing: border-box;
+    appearance: none;
+    font: inherit;
+    color: var(--black);
+    background-color: var(--light-gray);
+}
 

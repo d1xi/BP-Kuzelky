@@ -6,6 +6,7 @@ import math
 import os
 import json
 from shared import Boxes, Box
+import subprocess
 
 import threading
 
@@ -18,6 +19,9 @@ class OCR ():
         self.boxes = self.loadBoxes()
         self.lock = threading.Lock()
         self.latestDetectedValues = {}
+
+        self.captureThread = None
+        self.ocrThred = None
 
     def setBoxes(self, boxes: Boxes):
         with self.lock:
@@ -170,21 +174,27 @@ class OCR ():
         #rtsp://admin:123456@192.168.1.13:554/media/video1 
         #link = f"rtsp://{config['userName']}:{config['password']}@{config['ip']}/media/video1"
         
-        link = url
-        #link = "C:/Users/Lucie/Desktop/BP/Data.mp4"
-        self.capture = cv2.VideoCapture(link)
+        
+        #link = url
+        link = "C:/Users/Lucie/Desktop/BP/Data.mp4"
+        if self.capture is not None:
+            self.capture.release()
+        self.capture = cv2.VideoCapture(link, cv2.CAP_FFMPEG)
 
         if not self.capture.isOpened():
-            print("Error: Could not open RTSP strem.\n")
+            print("Error: Could not open RTSP stream.\n")
             return (-1)
 
         self.frameWidth = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frameHeight = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         print("Starting RTSP capturing:\n")
-
-        threading.Thread(target=self.captureLoop, daemon=True).start()
-        threading.Thread(target=self.ocrLoop, daemon=True).start()
+        if self.captureThread is None:
+            self.captureThread = threading.Thread(target=self.captureLoop, daemon=True)
+            self.captureThread.start()
+        if self.ocrThred is None:
+            self.ocrThred = threading.Thread(target=self.ocrLoop, daemon=True)
+            self.ocrThred.start()
 
         return True
 

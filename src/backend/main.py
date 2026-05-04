@@ -88,32 +88,43 @@ def getConfig():
         "userName" : data.get("userName", "")
     }
 
+def clean(value, fallback):
+    return value if value not in [None, ""] else fallback
+
 @app.post("/connect")
 async def connectCam(request: Request):
     data = await request.json()
+    stored = loadConfig()
 
-    ip = data.get("ip", "")
-    port = data.get("port", "")
-    userName = data.get("userName", "")
-    passwordInput = data.get("password", "")
+    ip = clean(data.get("ip"), stored.get("ip"))
+    port = clean(data.get("port"), stored.get("port"))
+    userName = clean(data.get("userName"), stored.get("userName"))
+
+    passwordInput = data.get("password")
+
+    storedPassword = ""
+    if stored.get("passwordEnc"):
+        storedPassword = decrypth(stored["passwordEnc"])
+
+    password = passwordInput if passwordInput not in [None, ""] else storedPassword
+
     rtspURL = data.get("rtspURL", "")
 
-    stored = loadConfig()
-    password = passwordInput or getPassword()
-  
     if not rtspURL:
-        if not password:
-            return {"status": "error", "message": "Missing password"}
+        if not all([ip, port, userName, password]):
+            return {"status": "error", "message": "Missing RTSP fields"}
 
         rtspURL = f"rtsp://{userName}:{password}@{ip}:{port}/media/video1"
 
-    # store encrypted ALWAYS (even if from old config)
-    if passwordInput:
+    if passwordInput not in [None, ""]:
         saveConfig(ip, port, userName, passwordInput)
+
+    print("FINAL RTSP:", rtspURL)
 
     ocr.Start(rtspURL)
 
     return {"status": "ok"}
+
 
 @app.get("/values")
 def readValues():

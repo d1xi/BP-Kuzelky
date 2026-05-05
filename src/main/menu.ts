@@ -32,6 +32,12 @@ export default class MenuBuilder {
         click: async()=>{
           this.mainWindow.webContents.send("navigate", "/Results");
         } 
+      },      
+      {
+        label: '&Historie',
+        click: async()=>{
+          this.mainWindow.webContents.send("navigate", "/History");
+        } 
       },
       {
         label: '&Týmy',
@@ -46,29 +52,11 @@ export default class MenuBuilder {
         } 
       },
       {
-        label: '&Statistiky',
-        click: async()=>{
-          this.mainWindow.webContents.send("navigate", "/Statistics");
-        } 
-      },
-      {
         label: '&Kalibrace',
         click: async()=>{
           this.mainWindow.webContents.send("navigate", "/Calibration");
         } 
-      },
-      {
-        label: '&Účet',
-        click: async()=>{
-          this.mainWindow.webContents.send("navigate", "/Account");
-        }         
-      },
-      {
-        label: '&Nastavení',
-        click: async()=>{
-          this.mainWindow.webContents.send("navigate", "/Settings");
-        }         
-      }      
+      },     
     ];
 
     return templateDefault;

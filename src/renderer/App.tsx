@@ -45,12 +45,10 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage/>}/>
         <Route path="/Results" element={<ResultsPage/>}/>
+        <Route path="/History" element={<h1>History</h1>}/>
         <Route path="/Teams" element={<TeamsPage/>}/>
-        <Route path="/Leagues" element={<LeaguesPage/>}/>
-        <Route path="/Statistics" element={<h1>Statistics</h1>}/>
+        <Route path="/Leagues" element={<LeaguesPage/>}/>        
         <Route path="/Calibration" element={<CalibrationPage/>}/>
-        <Route path="/Account" element={<h1>Acounts</h1>}/>
-        <Route path="/Settings" element={<h1>Settings</h1>}/>
       </Routes>
     </Router>
   );

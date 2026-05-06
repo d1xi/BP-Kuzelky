@@ -316,7 +316,7 @@ database.exec(`
   pythonProcess = spawn("python", [path.join(__dirname, '../../src/backend/main.py')], {
     stdio:["ignore", "inherit", process.stderr],
     windowsHide:true,
-    env: {"OPENCV_LOG_LEVEL": "DEBUG", "OPENCV_VIDEOIO_DEBUG": "1", "OPENCV_FFMPEG_CAPTURE_OPTIONS": "rtsp_transport;udp"}
+    env: {"OPENCV_LOG_LEVEL": "0", "OPENCV_VIDEOIO_DEBUG": "0", "OPENCV_FFMPEG_CAPTURE_OPTIONS": "rtsp_transport;udp"}
   });
   pythonProcess.on('close', (retCode) => {
       console.log(`child process exited with code ${retCode}`);

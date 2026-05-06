@@ -22,11 +22,10 @@ class State:
     def createLaneState(self):
         return{
             "phase": "WAITING",
-            "throwActive": False,
+            "throwIndex": 0,
             "pinsStart": None,
             "pinsEnd": None,
-            "lastChangeTime": None,
-            "ocrSnapshot": None
+            "lastChangeTime": None,            
         }
     
     def handleStartLight(self, lane, binary, state):
@@ -43,15 +42,13 @@ class State:
 
         if state["phase"] == "ARMED":
             if state["pinsStart"] is None:
-                state["pinsStart"] = pins
+                state["pinsStart"] = pins.copy()
                 return
 
-            if pins != state["pinsStart"]:
+            if self.hasPinChange(state["pinsStart"], pins):
                 state["phase"] = "THROW"
-                state["throwActive"] = True
                 state["lastChangeTime"] = time.time()
-                state["pinsEnd"] = pins
-            return
+                state["pinsEnd"] = pins.copy()
 
     def handleEvaluation(self, lane, ocr, binary, state):
         if state["phase"] != "THROW":
@@ -62,6 +59,7 @@ class State:
             return None
         
         state["phase"] = "RESULT"
+        state["throwIndex"] += 1
 
         pinsStart = state["pinsStart"]
         pinsEnd = state["pinsEnd"]
@@ -72,19 +70,26 @@ class State:
 
         result = {
             "lane": lane,
-            "binary": fallen,
+            "throw": state["throwIndex"],
+            "binaryFallen": fallen,
             "ocr": int(ocrValue) if ocrValue.isdigit() else None,
-            "match": str(fallen) == ocrValue
+            "match": (str(fallen) == ocrValue),
+            "timestamp": time.time()
         }
 
         state["phase"] = "WAITING"
-        state["throwActive"] = False
-        state["pinsStart"] = None
+        state["pinsStart"] = state["pinsEnd"] 
         state["pinsEnd"] = None
         state["lastChangeTime"] = None
 
         return result
-    
+
+    def hasPinChange(self, start, current):
+        for k in start:
+            if start.get(k, 0) != current.get(k, 0):
+                return True
+        return False
+
     def getPinsForLane(self, binary, lane):
         result = {}
 
@@ -96,12 +101,12 @@ class State:
             if l == lane:
                 result[pin] = val
 
-            return result
+        return result
     
     def countFallen(self, start, end):
         count = 0
         for pin in start:
-            if start[pin] == 1 and end.get(pin, 1) == 0:
+            if start.get(pin, 0) == 1 and end.get(pin, 1) == 0:
                 count += 1
         return count
     

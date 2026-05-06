@@ -1,86 +1,94 @@
 import numpy as np
+from collections import defaultdict, deque
 
-class Binary():
+
+class Binary:
     def __init__(self):
-        self.prevStart = {}
+
         self.prevPins = {}
 
-        self.currentPins = {}
-        self.currentStart = {}
+        # rolling window per pin (15 frames)
+        self.windowSize = 15
+        self.history = defaultdict(lambda: deque(maxlen=self.windowSize))
 
-        self.onThreshold = 0.6
-        self.offThreshold = 0.4
+        # thresholds
+        self.onThreshold = 0.85
+        self.offThreshold = 0.62
 
-        self.centerSize = 5
+        # stability counters (THIS fixes flicker)
+        self.onCounter = defaultdict(int)
+        self.offCounter = defaultdict(int)
 
-    def process(self, inputs):
-        events = {
-            "startEvents": [],
-            "pinEvents" : []
-        }
+        # how many consecutive confirmations needed
+        self.onConfirm = 5
+        self.offConfirm = 5
 
-        self.processStartLight(inputs.get("startLight", []), events)
-        self.processPins(inputs.get("pins", []), events)
+    # FRAME PROCESS
+    def processFrame(self, inputs):
 
-        return{
-            "events": events,
-            "state": {
-                "startLight": self.currentStart,
-                "pins": self.currentPins
-            }
-        }
-    
-    def processStartLight(self, items, events):
-        for item in items:
-            lane = item["lane"]
+        newState = {}
+        events = []
+
+        for item in inputs:
+            key = (item["lane"], item["pinIndex"])
+
             signal = self.centerNormalized(item["crop"])
 
-            prev = self.prevStart.get(lane, 0)
-            
-            if prev == 0 and signal > self.onThreshold:
-                value = 1
-                events["startEvents"].append({
-                    "type": "READY",
-                    "lane": lane
-                })
+            #SMOOTHING (rolling window) 
+            self.history[key].append(signal)
+            values = self.history[key]
 
-            elif prev == 1 and signal < self.offThreshold:
-                value = 0
-            else:
-                value = prev
-
-            self.prevStart[lane] = value
-            self.currentStart[lane] = value
-    
-    def processPins(self, items, events):
-        current = {}
-
-        for item in items:
-            lane = item["lane"]
-            pin = item["pinIndex"]
-            key = (lane, pin)
+            # more robust than mean (reduces LED spikes)
+            avg = float(np.median(values))
 
             prev = self.prevPins.get(key, 0)
-            signal = self.centerNormalized(item["crop"])
 
-            if prev == 0 and signal > self.onThreshold:
-                value = 1
-                events["pinEvents"].append({
-                    "type": "PIN_FALL",
-                    "lane": lane,
-                    "pinIndex": pin
+            state = prev
+
+            # ON LOGIC 
+            if avg > self.onThreshold:
+                self.onCounter[key] += 1
+                self.offCounter[key] = 0
+
+                if self.onCounter[key] >= self.onConfirm:
+                    state = 1
+
+            # OFF LOGIC
+            elif avg < self.offThreshold:
+                self.offCounter[key] += 1
+                self.onCounter[key] = 0
+
+                if self.offCounter[key] >= self.offConfirm:
+                    state = 0
+
+            # NEUTRAL ZONE
+            else:
+                self.onCounter[key] = 0
+                self.offCounter[key] = 0
+                state = prev
+
+            newState[key] = state
+
+            # EVENTS 
+            if state != prev:
+                events.append({
+                    "pin": f"{key[0]}_{key[1]}",
+                    "from": prev,
+                    "to": state,
+                    "avg": float(avg),
+                    "signal": float(signal)
                 })
 
-            elif prev == 1 and signal < self.offThreshold:
-                value = 0
-            else:
-                value = prev
-            current[f"{lane}_{pin}"] = value
-        
-        self.prevPins = current
-        self.currentPins = current
-    
-    def centerMeanOfPixels(self, crop):
+        self.prevPins = newState
+
+        return {
+            "state": {f"{k[0]}_{k[1]}": v for k, v in newState.items()},
+            "events": events
+        }
+
+    # SIGNAL EXTRACTION 
+
+    def centerNormalized(self, crop):
         if crop is None:
             return 0.0
 
@@ -89,7 +97,7 @@ class Binary():
             return 0.0
 
         ch, cw = h // 2, w // 2
-        half = self.centerSize // 2
+        half = 4
 
         region = crop[
             max(0, ch - half): min(h, ch + half + 1),
@@ -98,10 +106,5 @@ class Binary():
 
         if region.size == 0:
             return 0.0
-        if np.mean(region) < 20:
-            return 0.0
 
-        return float(np.median(region))
-    
-    def centerNormalized(self, crop):
-        return self.centerMeanOfPixels(crop) / 255.0
+        return float(np.mean(region)) / 255.0

@@ -1,34 +1,43 @@
-import numpy as np
-import pytesseract
 import cv2
 import time
-import os
-import json
-from shared import Boxes, Box
-
 import threading
+import json
+import os
+import numpy as np
+from collections import defaultdict, deque
+from shared import Boxes
 
 SAVED_BOXES = "boxes.json"
 
-class Detect ():
-    def __init__(self, ocr, binary, state):
+
+class Detect:
+    def __init__(self, binary):
         self.capture = None
+        self.source = None
+
         self.latestFrame = None
+        self.latestFrameTime = None
 
         self.boxes = self.loadBoxes()
         self.lock = threading.Lock()
 
-        self.ocr = ocr
         self.binary = binary
 
         self.frameWidth = None
         self.frameHeight = None
 
-        self.state = state
-        self.latestDetectedValues = {}
-
         self.captureThread = None
         self.processingThread = None
+
+        self.latestValues = {}
+        self.running = False
+
+        # REAL-TIME BUFFER 
+        self.frameBuffer = deque(maxlen=15)  # sliding window only
+        self.bufferLock = threading.Lock()
+        self.bufferSize = 15
+
+    # CONFIG 
 
     def setBoxes(self, boxes: Boxes):
         with self.lock:
@@ -45,160 +54,202 @@ class Detect ():
         with open(SAVED_BOXES, "r") as f:
             return Boxes(**json.load(f))
 
-    def toVideoResolution(self, box: dict):
-        return {
-            "lane": box["lane"],
-            "x": int(box["x"] * self.frameWidth),
-            "y": int(box["y"] * self.frameHeight),
-            "w": int(box["w"] * self.frameWidth),
-            "h": int(box["h"] * self.frameHeight),
-        }
-    
-    def toNormalized(self, box: dict):
-        return {
-            "lane": box["lane"],
-            "x": box["x"] / self.frameWidth,
-            "y": box["y"] / self.frameHeight,
-            "w": box["w"] / self.frameWidth,
-            "h": box["h"] / self.frameHeight,
-        }
+    def getLatestValues(self):
+        with self.lock:
+            return self.latestValues.copy()
 
+    # START / STOP
+    def start(self, url):
+        self.stop()
+
+        url = "C:/Users/Lucie/Desktop/BP/fixed2.mp4"
+        self.capture = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+
+        self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        if not self.capture.isOpened():
+            print("Error: Could not open stream")
+            return
+
+        self.frameWidth = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.frameHeight = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        print("Started capture")
+
+        self.running = True
+
+        self.captureThread = threading.Thread(target=self.captureLoop, daemon=True)
+        self.processingThread = threading.Thread(target=self.processingLoop, daemon=True)
+
+        self.captureThread.start()
+        self.processingThread.start()
+
+    def stop(self):
+        self.running = False
+
+        if self.capture:
+            self.capture.release()
+        self.capture = None
+
+    # CAPTURE LOOP
     def captureLoop(self):
-        while True:
-            if self.capture is None:                
-                time.sleep(0.1)
+        while self.running:
+            if self.capture is None:
+                time.sleep(0.01)
                 continue
 
             ret, frame = self.capture.read()
 
             if not ret:
-                time.sleep(0.1)
+                self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 continue
-           
+
             with self.lock:
                 self.latestFrame = frame
-        
-    def processFrame(self):
-        with self.lock:
-            if self.latestFrame is None:
-                return None
+                self.latestFrameTime = time.time()
 
-            frame = self.latestFrame.copy()
-            boxes = self.boxes.model_dump()
+            # sliding buffer (no lag accumulation)
+            with self.bufferLock:
+                self.frameBuffer.append(frame.copy())
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    # PROCESS LOOP (REAL-TIME)
 
-        ocrInputs = {}
-        binaryInputs = {}
+    def processingLoop(self):
+        while self.running:
+            time.sleep(0.03)  # ~30 FPS processing
 
-        for box_type, box_list in boxes.items():
-            if box_type in ["sum", "laneSum", "time", "throws", "fallenPins"]:
-                ocrInputs[box_type] = self.cropBoxes(gray, box_list)
-            elif box_type in ["startLight", "pins"]:
-                binaryInputs[box_type] = self.cropBoxes(gray, box_list)
+            with self.bufferLock:
+                if len(self.frameBuffer) < 5:
+                    continue
+                frames = list(self.frameBuffer)
+
+            result = self.processBatch(frames)
+
+            with self.lock:
+                self.latestValues = result
+
+            # overlay always uses newest frame
+            frame = frames[-1]
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            inputs = self.cropPinBoxes(frame, gray)
+
+            self.debugOverlay(result, frame, inputs)
+
+    # BATCH PROCESSING (SLIDING WINDOW)
+
+    def processBatch(self, frames):
+        pinSignals = defaultdict(list)
+
+        for frame in frames:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            pinInputs = self.cropPinBoxes(frame, gray)
+
+            for item in pinInputs:
+                key = f"{item['lane']}_{item['pinIndex']}"
+                signal = self.binary.centerNormalized(item["crop"])
+                pinSignals[key].append(signal)
+
+        finalPins = {}
+        debug = {}
+
+        for key, values in pinSignals.items():
+
+            # MORE STABLE THAN MEAN (fixes flicker + false ON)
+            avg = float(np.median(values))
+
+            if avg > self.binary.onThreshold:
+                state = 1
+            elif avg < self.binary.offThreshold:
+                state = 0
+            else:
+                lane, pin = key.split("_")
+                state = self.binary.prevPins.get((int(lane), int(pin)), 0)
+
+            finalPins[key] = state
+
+            debug[key] = {
+                "avg": avg,
+                "state": state,
+                "samples": values[-5:]
+            }
 
         return {
-            "ocr": self.ocr.process(ocrInputs),
-            "binary": self.binary.process(binaryInputs)
+            "state": {
+                "pins": finalPins
+            },
+            "debug": debug
         }
 
-    def cropBoxes(self, frame, box_list):
+    # CROPPING
+    def cropPinBoxes(self, frame, gray):
         crops = []
 
-        for box in box_list:
-            box = self.toVideoResolution(box)
-
-            x, y, w, h = self.clampBox(frame, box)
-            crop = frame[y:y+h, x:x+w]
-
-            if crop.size == 0:
+        for box in self.boxes.model_dump().get("pins", []):
+            if box.get("pinIndex") is None:
                 continue
-            
-            if box.get("pinIndex") == None:
+
+            x = int(box["x"] * self.frameWidth)
+            y = int(box["y"] * self.frameHeight)
+            w = int(box["w"] * self.frameWidth)
+            h = int(box["h"] * self.frameHeight)
+
+            x = max(0, x)
+            y = max(0, y)
+
+            crop = gray[y:y+h, x:x+w]
+            if crop.size == 0:
                 continue
 
             crops.append({
                 "lane": box["lane"],
-                "pinIndex": box.get("pinIndex"),
-                "boxType" : box.get("type"),
+                "pinIndex": box["pinIndex"],
+                "box": (x, y, w, h),
                 "crop": crop
             })
+
         return crops
-    
-    def clampBox(self, frame, box):
-        h, w = frame.shape[:2]
 
-        x = max(0, min(box["x"], w - 1))
-        y = max(0, min(box["y"], h - 1))
-        bw = max(1, min(box["w"], w - x))
-        bh = max(1, min(box["h"], h - y))
+    # OVERLAY
+    def debugOverlay(self, result, frame, pinInputs=None):
+        overlay = frame.copy()
 
-        return x, y, bw, bh
+        pins = result.get("state", {}).get("pins", {})
+        debug = result.get("debug", {})
 
-    def start(self, url):
-        self.stop()
-        #rtsp://admin:123456@192.168.1.13:554/media/video1 
-        #link = f"rtsp://{config['userName']}:{config['password']}@{config['ip']}/media/video1"
-        #print(url)
-        #link = url
-        link = "C:/Users/Lucie/Desktop/BP/fixed2.mp4"
-        #print(cv2.getBuildInformation())
-        #cv2.setNumThreads(0)
-        #cv2.ocl.setUseOpenCL(False)
-        #self.capture = cv2.VideoCapture(link, cv2.CAP_FFMPEG)
-        self.capture = cv2.VideoCapture(link)
-        #self.capture.set(cv2.CAP_PROP_HW_ACCELERATION, 0)
+        # TEXT
+        y = 30
+        for key, state in pins.items():
+            info = debug.get(key, {})
+            avg = info.get("avg", 0)
 
-        if not self.capture.isOpened():
-            print("Error: Could not open RTSP strem.\n")
-            return (-1)
+            color = (0, 255, 0) if state == 1 else (0, 0, 255)
 
-        self.frameWidth = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.frameHeight = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            text = f"{key} | {state} | {avg:.2f}"
 
-        print("Starting RTSP capturing:\n")
+            cv2.putText(
+                overlay,
+                text,
+                (10, y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1
+            )
+            y += 20
 
-        if self.captureThread == None:
-            self.captureThread = threading.Thread(target=self.captureLoop, daemon=True)
-            self.captureThread.start()
-            print("New")
-        if self.processingThread == None:
-            self.processingThread = threading.Thread(target=self.processingLoop, daemon=True)
-            self.processingThread.start()
-            print("new2")
+        # BOXES 
+        if pinInputs:
+            for item in pinInputs:
+                lane = item["lane"]
+                pin = item["pinIndex"]
+                x, y0, w, h = item["box"]
 
-        return True
+                key = f"{lane}_{pin}"
+                state = pins.get(key, 0)
 
-    def processingLoop(self):
-        while True:
-            result = self.processFrame()
-            if result is None:
-                continue
+                color = (0, 255, 0) if state == 1 else (0, 0, 255)
 
-            ocr = result["ocr"]
-            binary = result["binary"]
+                cv2.rectangle(overlay, (x, y0), (x+w, y0+h), color, 2)
 
-            stateResults = self.state.update(ocr, binary)
-
-            with self.lock:
-                self.latestDetectedValues = {
-                    "ocr": ocr,
-                    "binary": binary,
-                    "state": stateResults
-                }
-            time.sleep(0.5)
-
-    def getFrame(self):
-        with self.lock:
-            if self.latestFrame is None:
-                return None
-            return self.latestFrame.copy()
-        
-    def stop(self):
-        with self.lock:
-            if self.capture is not None:
-                self.capture.release()
-                self.capture = None
-
-            self.latestFrame = None
-        
+        cv2.imshow("PIN DEBUG OVERLAY", overlay)
+        cv2.waitKey(1)

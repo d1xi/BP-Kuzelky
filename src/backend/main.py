@@ -6,7 +6,8 @@ from ocr import OCR
 import cv2
 import asyncio
 from hash import decrypth, encrypt
-
+from detect import Detect
+from binary import Binary
 import json
 import os
 CONFIG_PATH = "./src/renderer/utils/connectInformation.json"
@@ -24,7 +25,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ocr = OCR()
+#ocr = OCR()
+binary = Binary()
+detect = Detect(binary)
 
 def loadConfig():
     if not os.path.exists(CONFIG_PATH):
@@ -69,14 +72,20 @@ def getPassword():
 
 @app.get("/frame")
 def getFrame():
-    frame = ocr.getFrame()
-    if(frame is None):
+    frame = None
+
+    with detect.lock:
+        if detect.latestFrame is not None:
+            frame = detect.latestFrame.copy()
+
+    if frame is None:
         return Response(status_code=204)
     
-    ret, buffer = cv2.imencode(".jpeg", frame) #".jpeg, frame"
+    ret, buffer = cv2.imencode(".jpeg", frame)
     if not ret:
         return Response(status_code=500)
-    return(Response(content=buffer.tobytes(), media_type="image/jpeg"))
+
+    return Response(content=buffer.tobytes(), media_type="image/jpeg")
 
 @app.get("/config")
 def getConfig():   
@@ -121,31 +130,31 @@ async def connectCam(request: Request):
 
     print("FINAL RTSP:", rtspURL)
 
-    ocr.Start(rtspURL)
+    detect.start(rtspURL)
 
     return {"status": "ok"}
 
 
 @app.get("/values")
 def readValues():
-    with ocr.lock:
-        return ocr.latestDetectedValues.copy()
+    with detect.lock:
+        return detect.latestValues.copy()
 
 @app.get("/boxes")
 def getOCRBoxes():
-    return ocr.boxes.model_dump() if ocr.boxes else {}
+    return detect.boxes.model_dump() if detect.boxes else {}
 
 @app.post("/boxes")
 def setOCRBoxes(boxes: Boxes):
-    ocr.setBoxes(boxes)
-    ocr.saveBoxes(boxes)
+    detect.setBoxes(boxes)
+    detect.saveBoxes(boxes)
     return{"status": "ok"}
 
 @app.get("/resolution")
 def getResolution():
     return{
-        "w": ocr.frameWidth,
-        "h": ocr.frameHeight
+        "w": detect.frameWidth,
+        "h": detect.frameHeight
     }
 
 @app.websocket("/ws")
@@ -157,8 +166,8 @@ async def websocketEndpoint(ws: WebSocket):
     while True:
         await asyncio.sleep(0.5)
 
-        with ocr.lock:
-            data = ocr.latestDetectedValues.copy()
+        with detect.lock:
+            data = detect.latestValues.copy()
         
         if data != lastData:
             await ws.send_json(data)
@@ -179,7 +188,7 @@ def startup():
                 f"{password}@{config['ip']}:"
                 f"{config['port']}/media/video1"
             )
-            ocr.Start(rtspURL)
+            detect.start(rtspURL)
 
     except Exception as e:
         print("OCR startup failed:", e)
